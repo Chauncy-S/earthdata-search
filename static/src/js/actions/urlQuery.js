@@ -135,7 +135,7 @@ export const changePath = (path = '') => async (dispatch, getState) => {
     // matches /portal/<id>, which we redirect to /portal/<id>/search but needs to trigger these actions
     || pathname.match(/\/portal\/\w*/)
   ) {
-    dispatch(actions.getCollections())
+    await dispatch(actions.getCollections())
 
     // Granules Search
     if (pathname === '/search/granules') {

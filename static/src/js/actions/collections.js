@@ -1,6 +1,5 @@
 import { isCancel } from 'axios'
 
-import CollectionRequest from '../util/request/collectionRequest'
 import {
   buildCollectionSearchParams,
   prepareCollectionParams
@@ -23,9 +22,12 @@ import {
   UPDATE_GRANULE_FILTERS
 } from '../constants/actionTypes'
 
-import { getFocusedCollectionId } from '../selectors/focusedCollection'
 import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
+import { getFocusedCollectionId } from '../selectors/focusedCollection'
+import { getUsername } from '../selectors/user'
 import { pruneFilters } from '../util/pruneFilters'
+
+import CollectionGraphQlRequest from '../util/request/collectionGraphQlRequest'
 
 export const addMoreCollectionResults = payload => ({
   type: ADD_MORE_COLLECTION_RESULTS,
@@ -145,6 +147,7 @@ export const getCollections = () => (dispatch, getState) => {
 
   // Retrieve data from Redux using selectors
   const earthdataEnvironment = getEarthdataEnvironment(state)
+  const username = getUsername(state)
 
   // If cancel token is set, cancel the previous request(s)
   if (cancelToken) {
@@ -170,32 +173,180 @@ export const getCollections = () => (dispatch, getState) => {
   dispatch(onFacetsLoading())
   dispatch(startCollectionsTimer())
 
-  const requestObject = new CollectionRequest(authToken, earthdataEnvironment)
+  const requestObject = new CollectionGraphQlRequest(authToken, earthdataEnvironment)
+
   cancelToken = requestObject.getCancelToken()
 
-  const response = requestObject.search(buildCollectionSearchParams(collectionParams))
+  const graphQuery = `
+    query GetCollection(
+      $boundingBox: String
+      $circle: String
+      $collectionDataType: [String]
+      $dataCenter: String
+      $dataCenterH: [String]
+      $facetsSize: Int
+      $granuleDataFormat: String
+      $granuleDataFormatH: [String]
+      $hasGranulesOrCwic: Boolean
+      $horizontalDataResolutionRange: String
+      $includeFacets: String
+      $includeHasGranules: Boolean
+      $includeTags: String
+      $instrument: String
+      $instrumentH: [String]
+      $keyword: String
+      $line: String
+      $options: JSON
+      $platform: String
+      $platformH: [String]
+      $point: String
+      $polygon: String
+      $processingLevelIdH: [String]
+      $project: String
+      $projectH: [String]
+      $provider: String
+      $scienceKeywordsH: [String]
+      $serviceType: [String]
+      $sortKey: [String]
+      $spatialKeyword: String
+      $subscriberId: String
+      $tagKey: [String]
+      $temporal: String
+      $twoDCoordinateSystemName: [String]
+    ) {
+      collections (
+        boundingBox: $boundingBox
+        circle: $circle
+        collectionDataType: $collectionDataType
+        dataCenter: $dataCenter
+        dataCenterH: $dataCenterH
+        facetsSize: $facetsSize
+        granuleDataFormat: $granuleDataFormat
+        granuleDataFormatH: $granuleDataFormatH
+        hasGranulesOrCwic: $hasGranulesOrCwic
+        horizontalDataResolutionRange: $horizontalDataResolutionRange
+        includeFacets: $includeFacets
+        includeHasGranules: $includeHasGranules
+        includeTags: $includeTags
+        instrument: $instrument
+        instrumentH: $instrumentH
+        keyword: $keyword
+        line: $line
+        options: $options
+        platform: $platform
+        platformH: $platformH
+        point: $point
+        polygon: $polygon
+        processingLevelIdH: $processingLevelIdH
+        project: $project
+        projectH: $projectH
+        provider: $provider
+        scienceKeywordsH: $scienceKeywordsH
+        serviceType: $serviceType
+        sortKey: $sortKey
+        spatialKeyword: $spatialKeyword
+        tagKey: $tagKey
+        temporal: $temporal
+        twoDCoordinateSystemName: $twoDCoordinateSystemName
+      ) {
+        count
+        facets
+        items {
+          abstract
+          archiveAndDistributionInformation
+          boxes
+          collectionDataType
+          conceptId
+          coordinateSystem
+          dataCenter
+          dataCenters
+          doi
+          hasGranules
+          lines
+          organizations
+          points
+          polygons
+          relatedUrls
+          scienceKeywords
+          shortName
+          spatialExtent
+          tags
+          temporalExtents
+          tilingIdentificationSystems
+          timeEnd
+          timeStart
+          title
+          versionId
+          services {
+            count
+            items {
+              conceptId
+              longName
+              name
+              type
+              url
+              serviceOptions
+              supportedOutputProjections
+              supportedReformattings
+            }
+          }
+          granules {
+            count
+            items {
+              conceptId
+              onlineAccessFlag
+            }
+          }
+          subscriptions (
+            subscriberId: $subscriberId
+          ) {
+            count
+            items {
+              collectionConceptId
+              conceptId
+              name
+              nativeId
+              query
+            }
+          }
+          variables {
+            count
+            items {
+              conceptId
+              definition
+              longName
+              name
+              nativeId
+              scienceKeywords
+            }
+          }
+        }
+      }
+    }`
+
+  const response = requestObject.search(graphQuery, {
+    subscriberId: username,
+    ...buildCollectionSearchParams(collectionParams)
+  })
     .then((response) => {
-      const { data, headers } = response
+      const { data } = response
+      const { collections } = data
+      const { count, facets, items } = collections
 
-      const cmrHits = parseInt(headers['cmr-hits'], 10)
+      const cmrHits = count
 
-      const { feed = {} } = data
-      const {
-        entry = [],
-        facets = {}
-      } = feed
       const { children = [] } = facets
 
       const payload = {
         facets: children,
         hits: cmrHits,
         keyword,
-        results: entry
+        results: items
       }
 
       dispatch(finishCollectionsTimer())
 
-      dispatch(updateCollectionMetadata(entry))
+      dispatch(updateCollectionMetadata(items))
 
       if (pageNum === 1) {
         dispatch(updateCollectionResults(payload))

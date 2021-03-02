@@ -4,7 +4,10 @@ import PropTypes from 'prop-types'
 import { withRouter } from 'react-router-dom'
 import { isEmpty, min } from 'lodash'
 
-import { getFocusedCollectionGranuleMetadata } from '../../selectors/collectionResults'
+import {
+  getFocusedCollectionGranuleMetadata,
+  getFocusedCollectionGranuleResults
+} from '../../selectors/collectionResults'
 import { getFocusedCollectionId } from '../../selectors/focusedCollection'
 import { getFocusedCollectionMetadata } from '../../selectors/collectionMetadata'
 import { getGranuleIds } from '../../util/getGranuleIds'
@@ -17,24 +20,22 @@ export const mapStateToProps = state => ({
   collectionsSearch: state.searchResults.collections,
   focusedCollectionGranuleMetadata: getFocusedCollectionGranuleMetadata(state),
   focusedCollectionId: getFocusedCollectionId(state),
-  focusedCollectionMetadata: getFocusedCollectionMetadata(state)
+  focusedCollectionMetadata: getFocusedCollectionMetadata(state),
+  granuleSearchResults: getFocusedCollectionGranuleResults(state)
+
 })
 
 export const GranuleResultsHighlightsContainer = ({
   collectionsQuery,
-  collectionsSearch,
   focusedCollectionGranuleMetadata,
   focusedCollectionId,
   focusedCollectionMetadata,
+  granuleSearchResults,
   location
 }) => {
   const {
     isCwic
   } = focusedCollectionMetadata
-
-  const { byId: collectionSearchById = {} } = collectionsSearch
-  const { [focusedCollectionId]: collectionSearchResults = {} } = collectionSearchById
-  const { granules: collectionGranuleSearch = {} } = collectionSearchResults
 
   const { [focusedCollectionId]: collectionQueryResults = {} } = collectionsQuery
   const { granules: collectionGranuleQuery = {} } = collectionQueryResults
@@ -45,7 +46,7 @@ export const GranuleResultsHighlightsContainer = ({
     hits,
     isLoading,
     isLoaded
-  } = collectionGranuleSearch
+  } = granuleSearchResults
 
   if (isEmpty(allIds) || allIds == null) return null
 
@@ -84,6 +85,7 @@ GranuleResultsHighlightsContainer.propTypes = {
   focusedCollectionGranuleMetadata: PropTypes.shape({}).isRequired,
   focusedCollectionId: PropTypes.string.isRequired,
   focusedCollectionMetadata: PropTypes.shape({}).isRequired,
+  granuleSearchResults: PropTypes.shape({}).isRequired,
   location: locationPropType.isRequired
 }
 

@@ -18,10 +18,10 @@ import { pluralize } from '../../util/pluralize'
 import './CollectionDetailsBody.scss'
 
 const buildRelatedUrlsList = (relatedUrls) => {
-  if (!relatedUrls.length) return null
+  if (relatedUrls == null || !relatedUrls.length) return null
 
   const relatedUrlsList = []
-  if (relatedUrls[4] && relatedUrls[4].urls.length) {
+  if (relatedUrls[4] && relatedUrls[4].urls && relatedUrls[4].urls.length) {
     relatedUrls[4].urls.forEach((url, i) => {
       const key = `highlighted_url_${i}`
       relatedUrlsList.push(
@@ -42,7 +42,7 @@ const buildRelatedUrlsList = (relatedUrls) => {
 }
 
 const buildScienceKeywordList = (scienceKeywords) => {
-  if (!scienceKeywords.length) return null
+  if (scienceKeywords == null || !scienceKeywords.length) return null
 
   const scienceKeywordList = (
     <ul className="collection-details-body__keywords">
@@ -112,7 +112,7 @@ export const CollectionDetailsBody = ({
   onToggleRelatedUrlsModal
 }) => {
   const {
-    abstract,
+    title,
     dataCenters,
     doi,
     hasAllMetadata,
@@ -337,7 +337,7 @@ export const CollectionDetailsBody = ({
           </div>
           <div className="row collection-details-body__row">
             <div className="col collection-details-body__abstract">
-              {abstract}
+              {title}
             </div>
           </div>
           <div className="row collection-details-body__row">

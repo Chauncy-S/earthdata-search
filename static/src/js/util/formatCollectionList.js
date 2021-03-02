@@ -13,24 +13,31 @@ export const formatCollectionList = (collections, metadata, projectIds = [], bro
     const { [collectionId]: collectionMetadata = {} } = metadata
 
     const {
-      summary = '',
-      datasetId = null,
-      granuleCount = 0,
+      abstract = '',
+      granules,
       hasFormats = false,
+      hasMapImagery = false,
       hasSpatialSubsetting = false,
       hasTemporalSubsetting = false,
       hasTransforms = false,
       hasVariables = false,
-      hasMapImagery = false,
       isCwic = false,
       isNrt = false,
       organizations = [],
+      services,
       shortName,
       thumbnail = null,
       timeEnd = null,
       timeStart = null,
+      title = null,
+      variables,
       versionId
     } = collectionMetadata
+
+    let granuleCount = 0
+    if (granules != null) {
+      ({ count: granuleCount } = granules)
+    }
 
     const {
       name: browserName
@@ -82,17 +89,17 @@ export const formatCollectionList = (collections, metadata, projectIds = [], bro
       }
     }
 
-    let truncatedAbstract = summary
-    if (browserName === 'ie') truncatedAbstract = `${summary.substring(0, 280)}...`
+    let truncatedAbstract = abstract
+    if (browserName === 'ie') truncatedAbstract = `${abstract.substring(0, 280)}...`
 
     const isCollectionInProject = projectIds.indexOf(collectionId) !== -1
 
     const isLast = index === collectionIds.length - 1
 
     return {
-      summary: truncatedAbstract,
+      abstract: truncatedAbstract,
       collectionId,
-      datasetId,
+      title,
       displayOrganization,
       granuleCount,
       hasFormats,
@@ -103,11 +110,13 @@ export const formatCollectionList = (collections, metadata, projectIds = [], bro
       hasMapImagery,
       isCwic,
       isNrt,
+      services,
       shortName,
       temporalEnd,
       temporalRange,
       temporalStart,
       thumbnail,
+      variables,
       versionId,
       isCollectionInProject,
       isLast

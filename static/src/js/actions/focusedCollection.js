@@ -5,7 +5,7 @@ import {
   UPDATE_COLLECTION_SUBSCRIPTIONS
 } from '../constants/actionTypes'
 
-import { createFocusedCollectionMetadata } from '../util/focusedCollection'
+// import { createFocusedCollectionMetadata } from '../util/focusedCollection'
 import { eventEmitter } from '../events/events'
 import { getApplicationConfig } from '../../../../sharedUtils/config'
 import { getCollectionsQuery } from '../selectors/query'
@@ -13,11 +13,11 @@ import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
 import { getFocusedCollectionId } from '../selectors/focusedCollection'
 import { getFocusedCollectionMetadata } from '../selectors/collectionMetadata'
 import { getUsername } from '../selectors/user'
-import { hasTag } from '../../../../sharedUtils/tags'
+// import { hasTag } from '../../../../sharedUtils/tags'
 import { parseGraphQLError } from '../../../../sharedUtils/parseGraphQLError'
 import { portalPathFromState } from '../../../../sharedUtils/portalPath'
 
-import GraphQlRequest from '../util/request/graphQlRequest'
+import CollectionGraphQlRequest from '../util/request/collectionGraphQlRequest'
 
 
 /**
@@ -80,7 +80,7 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
   // Retrieve the default CMR tags to provide to the collection request
   const { defaultCmrSearchTags } = getApplicationConfig()
 
-  const graphRequestObject = new GraphQlRequest(authToken, earthdataEnvironment)
+  const graphRequestObject = new CollectionGraphQlRequest(authToken, earthdataEnvironment)
 
   const graphQuery = `
     query GetCollection(
@@ -97,6 +97,7 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
         abstract
         archiveAndDistributionInformation
         boxes
+        collectionDataType
         conceptId
         coordinateSystem
         dataCenter
@@ -104,6 +105,7 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
         doi
         hasGranules
         lines
+        organizations
         points
         polygons
         relatedUrls
@@ -113,6 +115,8 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
         tags
         temporalExtents
         tilingIdentificationSystems
+        timeEnd
+        timeStart
         title
         versionId
         services {
@@ -168,69 +172,13 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
     subscriberId: username
   })
     .then((response) => {
-      const payload = []
-
-      const {
-        data: responseData
-      } = response
-
-      const { data } = responseData
+      const { data = {} } = response
       const { collection } = data
 
       // If no results were returned, graphql will return `null`
       if (collection) {
-        const {
-          abstract,
-          archiveAndDistributionInformation,
-          boxes,
-          conceptId,
-          coordinateSystem,
-          dataCenter,
-          granules,
-          hasGranules,
-          services,
-          shortName,
-          subscriptions,
-          tags,
-          tilingIdentificationSystems,
-          title,
-          variables,
-          versionId
-        } = collection
-
-        // Formats the metadata returned from graphql for use throughout the application
-        const focusedMetadata = createFocusedCollectionMetadata(
-          collection,
-          authToken,
-          earthdataEnvironment
-        )
-
-        payload.push({
-          abstract,
-          archiveAndDistributionInformation,
-          boxes,
-          coordinateSystem,
-          dataCenter,
-          granules,
-          hasAllMetadata: true,
-          hasGranules,
-          id: conceptId,
-          isCwic: hasGranules === false && hasTag({ tags }, 'org.ceos.wgiss.cwic.granules.prod', ''),
-          services,
-          shortName,
-          subscriptions,
-          tags,
-          tilingIdentificationSystems,
-          title,
-          variables,
-          versionId,
-          ...focusedMetadata
-        })
-
-        // A users authToken will come back with an authenticated request if a valid token was used
-
         // Update metadata in the store
-        dispatch(actions.updateCollectionMetadata(payload))
+        dispatch(actions.updateCollectionMetadata([collection]))
 
         // Query CMR for granules belonging to the focused collection
         dispatch(actions.getSearchGranules())
@@ -279,7 +227,7 @@ export const getCollectionSubscriptions = collectionId => async (dispatch, getSt
   }
   const username = getUsername(state)
 
-  const graphRequestObject = new GraphQlRequest(authToken, earthdataEnvironment)
+  const graphRequestObject = new CollectionGraphQlRequest(authToken, earthdataEnvironment)
 
   const graphQuery = `
     query GetCollectionSubscriptions(

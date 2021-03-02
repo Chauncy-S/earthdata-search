@@ -35,6 +35,18 @@ export const initialGranuleState = {
   timerStart: null
 }
 
+const processGraphResults = (results) => {
+  const allIds = []
+
+  results.forEach((result) => {
+    const { conceptId } = result
+
+    allIds.push(conceptId)
+  })
+
+  return allIds
+}
+
 const processResults = (results) => {
   const allIds = []
 
@@ -81,7 +93,7 @@ const collectionsResultsReducer = (state = initialState, action) => {
       const { payload } = action
       const { hits, keyword, results } = payload
 
-      const allIds = processResults(results)
+      const allIds = processGraphResults(results)
 
       return {
         ...state,
@@ -91,7 +103,7 @@ const collectionsResultsReducer = (state = initialState, action) => {
       }
     }
     case ADD_MORE_COLLECTION_RESULTS: {
-      const allIds = processResults(action.payload.results)
+      const allIds = processGraphResults(action.payload.results)
 
       return {
         ...state,

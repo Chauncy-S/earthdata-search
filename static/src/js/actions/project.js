@@ -25,15 +25,15 @@ import {
 
 import { buildCollectionSearchParams, prepareCollectionParams } from '../util/collections'
 import { buildPromise } from '../util/buildPromise'
-import { createFocusedCollectionMetadata } from '../util/focusedCollection'
+// import { createFocusedCollectionMetadata } from '../util/focusedCollection'
 import { getApplicationConfig } from '../../../../sharedUtils/config'
 import { getCollectionsMetadata } from '../selectors/collectionMetadata'
 import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
 import { getUsername } from '../selectors/user'
-import { hasTag } from '../../../../sharedUtils/tags'
+// import { hasTag } from '../../../../sharedUtils/tags'
 import { isProjectCollectionValid } from '../util/isProjectCollectionValid'
 
-import GraphQlRequest from '../util/request/graphQlRequest'
+import CollectionGraphQlRequest from '../util/request/collectionGraphQlRequest'
 
 export const submittingProject = () => ({
   type: SUBMITTING_PROJECT
@@ -177,7 +177,7 @@ export const getProjectCollections = () => async (dispatch, getState) => {
     includeHasGranules
   } = searchParams
 
-  const graphRequestObject = new GraphQlRequest(authToken, earthdataEnvironment)
+  const graphRequestObject = new CollectionGraphQlRequest(authToken, earthdataEnvironment)
 
   const graphQuery = `
     query GetCollections(
@@ -197,6 +197,7 @@ export const getProjectCollections = () => async (dispatch, getState) => {
           abstract
           archiveAndDistributionInformation
           boxes
+          collectionDataType
           conceptId
           coordinateSystem
           dataCenter
@@ -204,6 +205,7 @@ export const getProjectCollections = () => async (dispatch, getState) => {
           doi
           hasGranules
           lines
+          organizations
           points
           polygons
           relatedUrls
@@ -213,6 +215,8 @@ export const getProjectCollections = () => async (dispatch, getState) => {
           tags
           temporalExtents
           tilingIdentificationSystems
+          timeEnd
+          timeStart
           title
           versionId
           services {
@@ -272,61 +276,14 @@ export const getProjectCollections = () => async (dispatch, getState) => {
     .then((response) => {
       const payload = []
 
-      const {
-        data: responseData
-      } = response
-
-      const { data } = responseData
+      const { data = {} } = response
       const { collections } = data
       const { items } = collections
 
       items.forEach((metadata) => {
-        const {
-          abstract,
-          archiveAndDistributionInformation,
-          boxes,
-          conceptId,
-          coordinateSystem,
-          dataCenter,
-          granules,
-          hasGranules,
-          services,
-          shortName,
-          subscriptions,
-          tags,
-          tilingIdentificationSystems,
-          title,
-          variables,
-          versionId
-        } = metadata
+        payload.push(metadata)
 
-        const focusedMetadata = createFocusedCollectionMetadata(
-          metadata,
-          authToken,
-          earthdataEnvironment
-        )
-
-        payload.push({
-          abstract,
-          archiveAndDistributionInformation,
-          boxes,
-          coordinateSystem,
-          dataCenter,
-          granules,
-          hasAllMetadata: true,
-          hasGranules,
-          id: conceptId,
-          isCwic: hasGranules === false && hasTag({ tags }, 'org.ceos.wgiss.cwic.granules.prod', ''),
-          services,
-          shortName,
-          subscriptions,
-          tags,
-          tilingIdentificationSystems,
-          title,
-          variables,
-          versionId,
-          ...focusedMetadata
-        })
+        const { conceptId } = metadata
 
         dispatch(actions.fetchDataQualitySummaries(conceptId))
       })

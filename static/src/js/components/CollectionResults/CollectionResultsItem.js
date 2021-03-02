@@ -11,6 +11,7 @@ import {
   FaPlus,
   FaInfoCircle
 } from 'react-icons/fa'
+import { isEmpty } from 'lodash'
 
 import { commafy } from '../../util/commafy'
 import { getApplicationConfig } from '../../../../../sharedUtils/config'
@@ -41,22 +42,24 @@ export const CollectionResultsItem = forwardRef(({
 }, ref) => {
   const {
     collectionId,
-    datasetId,
-    summary,
+    title,
+    abstract,
     displayOrganization,
     granuleCount,
-    hasFormats,
-    hasSpatialSubsetting,
-    hasTemporalSubsetting,
-    hasTransforms,
-    hasVariables,
+    // hasFormats,
+    // hasSpatialSubsetting,
+    // hasTemporalSubsetting,
+    // hasTransforms,
+    // hasVariables,
     hasMapImagery,
     isCwic,
     isCollectionInProject,
     isNrt,
+    services,
     shortName,
     temporalRange,
     thumbnail,
+    variables,
     versionId
   } = collectionMetadata
 
@@ -75,6 +78,58 @@ export const CollectionResultsItem = forwardRef(({
         offset: [0, 6]
       }
     }]
+  }
+
+  let hasFormats = false
+  let hasSpatialSubsetting = false
+  let hasTemporalSubsetting = false
+  let hasTransforms = false
+  let hasVariables = false
+
+  const { count: servicesCount, items } = services
+
+  if (servicesCount > 0) {
+    items.forEach((service) => {
+      const { type, serviceOptions = {} } = service
+
+      if (['ESI', 'Harmony', 'OPeNDAP'].includes(type)) {
+        let variableSubset = {}
+
+        if (serviceOptions != null) {
+          const { subset = {} } = serviceOptions
+
+          const {
+            interpolationTypes = [],
+            spatialSubset = {},
+            supportedOutputProjections = [],
+            supportedReformattings = [],
+            temporalSubset = {}
+          } = subset;
+
+          (variableSubset = {}) = subset
+
+          // Set hasFormats
+          hasFormats = supportedReformattings.length > 0
+
+          // Set hasSpatialSubsetting
+          hasSpatialSubsetting = !isEmpty(spatialSubset)
+
+          // Set hasTemporalSubsetting
+          hasTemporalSubsetting = !isEmpty(temporalSubset)
+
+          // Set hasTransforms
+          hasTransforms = !isEmpty(spatialSubset)
+            || interpolationTypes.length > 0
+            || supportedOutputProjections.length > 1
+        }
+
+        // Set hasVariables
+        const { count: variablesCount } = variables
+        if (variablesCount > 0 || !isEmpty(variableSubset)) {
+          hasVariables = true
+        }
+      }
+    })
   }
 
   if (hasSpatialSubsetting) {
@@ -256,7 +311,7 @@ export const CollectionResultsItem = forwardRef(({
               <img
                 className="collection-results-item__thumb-image"
                 src={thumbnail}
-                alt={`Thumbnail for ${datasetId}`}
+                alt={`Thumbnail for ${title}`}
                 height={thumbnailHeight}
                 width={thumbnailWidth}
               />
@@ -267,7 +322,7 @@ export const CollectionResultsItem = forwardRef(({
           <div className="collection-results-item__body-primary">
             <div className="collection-results-item__info">
               <h3 className="collection-results-item__title">
-                {datasetId}
+                {title}
               </h3>
               <p className="collection-results-item__desc">
                 {
@@ -289,7 +344,7 @@ export const CollectionResultsItem = forwardRef(({
                     </>
                   )
                 }
-                {summary}
+                {abstract}
               </p>
             </div>
             <div className="collection-results-item__actions">

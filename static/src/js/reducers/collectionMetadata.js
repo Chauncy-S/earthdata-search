@@ -18,12 +18,9 @@ const processResults = (results) => {
   const byId = {}
 
   results.forEach((result) => {
-    const { id } = result
+    const { conceptId } = result
 
-    byId[id] = {
-      ...camelCaseKeys(result),
-      conceptId: id
-    }
+    byId[conceptId] = camelCaseKeys(result)
   })
 
   return byId
@@ -33,7 +30,6 @@ const collectionMetadataReducer = (state = initialState, action) => {
   switch (action.type) {
     case UPDATE_COLLECTION_METADATA: {
       const newState = {}
-
       const processPayload = processResults(action.payload)
 
       const currentKeys = Object.keys(processPayload)

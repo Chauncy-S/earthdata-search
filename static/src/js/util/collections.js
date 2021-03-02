@@ -95,9 +95,13 @@ export const prepareCollectionParams = (state) => {
 
   const tagKey = []
   if (selectedTag) tagKey.push(selectedTag)
+
+  const serviceType = []
   if (featureFacets.customizable) {
-    tagKey.push(tagName('subset_service.esi'))
-    tagKey.push(tagName('subset_service.opendap'))
+    // tagKey.push(tagName('subset_service.esi'))
+    // tagKey.push(tagName('subset_service.opendap'))
+    serviceType.push('ESI')
+    serviceType.push('OPeNDAP')
   }
   if (featureFacets.mapImagery) tagKey.push(tagName('gibs'))
   if (featureFacets.availableFromAwsCloud) {
@@ -117,9 +121,11 @@ export const prepareCollectionParams = (state) => {
     keyword,
     line,
     pageNum,
+    offset: (pageNum * 20),
     point,
     polygon,
     sortKey,
+    serviceType,
     tagKey,
     temporalString,
     viewAllFacetsCategory,
@@ -169,12 +175,14 @@ export const buildCollectionSearchParams = (params) => {
     instrument,
     keyword,
     line,
+    offset,
     pageNum,
     platform,
     point,
     polygon,
     project,
     provider,
+    serviceType,
     sortKey: selectedSortKey,
     spatialKeyword,
     tagKey,
@@ -233,6 +241,7 @@ export const buildCollectionSearchParams = (params) => {
     keyword: keywordWithWildcard,
     line,
     pageNum,
+    offset,
     platform,
     platformH: facetsToSend.platform_h,
     point,
@@ -242,6 +251,7 @@ export const buildCollectionSearchParams = (params) => {
     project,
     provider,
     scienceKeywordsH: facetsToSend.science_keywords_h,
+    serviceType,
     spatialKeyword,
     tagKey,
     temporal: temporalString,
