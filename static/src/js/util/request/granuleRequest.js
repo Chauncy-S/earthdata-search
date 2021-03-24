@@ -1,11 +1,10 @@
 import CmrRequest from './cmrRequest'
 import {
-  getApplicationConfig,
   getEarthdataConfig,
   getEnvironmentConfig
 } from '../../../../../sharedUtils/config'
 
-import { getTemporal } from '../edscDate'
+import { formatGranuleResult } from '../granules'
 
 /**
  * Request object for granule specific requests
@@ -77,42 +76,7 @@ export default class GranuleRequest extends CmrRequest {
     const { feed = {} } = data
     const { entry = [] } = feed
 
-    entry.map((granule) => {
-      const updatedGranule = granule
-
-      updatedGranule.isCwic = false
-
-      const formattedTemporal = getTemporal(granule.time_start, granule.time_end)
-
-      if (formattedTemporal.filter(Boolean).length > 0) {
-        updatedGranule.formatted_temporal = formattedTemporal
-      }
-
-      const h = getApplicationConfig().thumbnailSize.height
-      const w = getApplicationConfig().thumbnailSize.width
-
-      if (granule.id) {
-        // eslint-disable-next-line
-        updatedGranule.thumbnail = `${getEarthdataConfig(this.earthdataEnvironment).cmrHost}/browse-scaler/browse_images/granules/${granule.id}?h=${h}&w=${w}`
-      }
-
-      if (granule.links && granule.links.length > 0) {
-        let browseUrl
-
-        // Pick the first 'browse' link to use as the browseUrl
-        granule.links.some((link) => {
-          if (link.rel.indexOf('browse') > -1) {
-            browseUrl = link.href
-            return true
-          }
-          return false
-        })
-
-        updatedGranule.browse_url = browseUrl
-      }
-
-      return updatedGranule
-    })
+    entry.map(granule => formatGranuleResult(granule, this.earthdataEnvironment))
 
     return {
       feed: {

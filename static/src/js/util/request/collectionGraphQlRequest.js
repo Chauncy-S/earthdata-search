@@ -53,28 +53,38 @@ export default class CollectionGraphQlRequest extends GraphQlRequest {
   transformMetadata(collection) {
     const transformedCollection = collection
 
-    const { granules, count } = collection
+    const {
+      browseFlag,
+      collectionDataType,
+      conceptId,
+      granules,
+      tags
+    } = collection
+
+    let granuleCount = 0
 
     if (granules) {
-      transformedCollection.hasGranules = count > 0
+      ({ count: granuleCount } = granules)
+
+      transformedCollection.hasGranules = granuleCount > 0
     }
 
-    if (collection && collection.tags) {
-      transformedCollection.isCwic = Object.keys(collection.tags).includes('org.ceos.wgiss.cwic.granules.prod')
-        && collection.hasGranules === false
+    if (collection && tags) {
+      transformedCollection.isCwic = hasTag({ tags }, 'org.ceos.wgiss.cwic.granules.prod', '')
+        && granuleCount === 0
       transformedCollection.hasMapImagery = hasTag(collection, 'gibs')
     }
 
-    if (collection && collection.collectionDataType) {
-      transformedCollection.isNrt = !!(collection.collectionDataType === 'NEAR_REAL_TIME')
+    if (collection && collectionDataType) {
+      transformedCollection.isNrt = !!(collectionDataType === 'NEAR_REAL_TIME')
     }
 
     const h = getApplicationConfig().thumbnailSize.height
     const w = getApplicationConfig().thumbnailSize.width
 
-    if (collection.conceptId) {
-      transformedCollection.thumbnail = collection.browseFlag
-        ? `${getEarthdataConfig(this.earthdataEnvironment).cmrHost}/browse-scaler/browse_images/datasets/${collection.conceptId}?h=${h}&w=${w}`
+    if (conceptId) {
+      transformedCollection.thumbnail = browseFlag
+        ? `${getEarthdataConfig(this.earthdataEnvironment).cmrHost}/browse-scaler/browse_images/datasets/${conceptId}?h=${h}&w=${w}`
         : unavailableImg
     }
 

@@ -121,7 +121,7 @@ export const prepareCollectionParams = (state) => {
     keyword,
     line,
     pageNum,
-    offset: (pageNum * 20),
+    offset: ((pageNum - 1) * 20),
     point,
     polygon,
     sortKey,

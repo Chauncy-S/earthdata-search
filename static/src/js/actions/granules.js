@@ -14,11 +14,13 @@ import GranuleRequest from '../util/request/granuleRequest'
 import OusGranuleRequest from '../util/request/ousGranuleRequest'
 import CwicGranuleRequest from '../util/request/cwicGranuleRequest'
 import {
+  ADD_GRANULE_GRAPHQL_METADATA,
   ADD_GRANULE_METADATA,
   ADD_MORE_GRANULE_RESULTS,
   ERRORED_GRANULES,
   EXCLUDE_GRANULE_ID,
   FINISHED_GRANULES_TIMER,
+  INITIALIZE_COLLECTION_GRANULES_QUERY,
   INITIALIZE_COLLECTION_GRANULES_RESULTS,
   LOADED_GRANULES,
   LOADING_GRANULES,
@@ -29,8 +31,7 @@ import {
   UNDO_EXCLUDE_GRANULE_ID,
   UPDATE_GRANULE_LINKS,
   UPDATE_GRANULE_METADATA,
-  UPDATE_GRANULE_RESULTS,
-  INITIALIZE_COLLECTION_GRANULES_QUERY
+  UPDATE_GRANULE_RESULTS
 } from '../constants/actionTypes'
 import { mbr } from '../util/map/mbr'
 import { prepareGranuleAccessParams } from '../../../../sharedUtils/prepareGranuleAccessParams'
@@ -53,6 +54,7 @@ import { getProjectCollectionsIds } from '../selectors/project'
 import { getFocusedCollectionId } from '../selectors/focusedCollection'
 import { eventEmitter } from '../events/events'
 import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
+// import { getFocusedCollectionGranuleResults } from '../selectors/collectionResults'
 
 export const addMoreGranuleResults = payload => ({
   type: ADD_MORE_GRANULE_RESULTS,
@@ -76,6 +78,11 @@ export const updateGranuleMetadata = payload => ({
 
 export const addGranuleMetadata = payload => ({
   type: ADD_GRANULE_METADATA,
+  payload
+})
+
+export const addGranuleGraphqlMetadata = payload => ({
+  type: ADD_GRANULE_GRAPHQL_METADATA,
   payload
 })
 
@@ -353,7 +360,10 @@ export const getSearchGranules = () => (dispatch, getState) => {
   }
 
   const {
-    isCwic,
+    isCwic
+  } = collectionMetadata
+
+  const {
     pageNum
   } = granuleParams
 

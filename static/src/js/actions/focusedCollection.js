@@ -71,8 +71,10 @@ export const getFocusedCollection = () => async (dispatch, getState) => {
 
   // If we already have the metadata for the focusedCollection, don't fetch it again
   if (hasAllMetadata) {
-    // Ensure the granules have been retrieved
-    dispatch(actions.getSearchGranules())
+    if (isCwic) {
+      // Ensure the granules have been retrieved
+      dispatch(actions.getSearchGranules())
+    }
 
     return null
   }
@@ -306,10 +308,10 @@ export const changeFocusedCollection = collectionId => (dispatch, getState) => {
     }))
   } else {
     // Initialize a nested query element in Redux for the new focused collection
-    dispatch(actions.initializeCollectionGranulesQuery(collectionId))
+    // dispatch(actions.initializeCollectionGranulesQuery(collectionId))
 
     // Initialize a nested search results element in Redux for the new focused collection
-    dispatch(actions.initializeCollectionGranulesResults(collectionId))
+    // dispatch(actions.initializeCollectionGranulesResults(collectionId))
 
     // Fetch the focused collection metadata
     dispatch(actions.getFocusedCollection())

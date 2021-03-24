@@ -1,6 +1,7 @@
 import camelCaseKeys from 'camelcase-keys'
 
 import {
+  ADD_GRANULE_GRAPHQL_METADATA,
   ADD_GRANULE_METADATA,
   UPDATE_GRANULE_METADATA
 } from '../constants/actionTypes'
@@ -18,6 +19,22 @@ const processResults = (results) => {
     const { id } = result
 
     byId[id] = camelCaseKeys(result)
+  })
+
+  return byId
+}
+
+/**
+ * Transforms CMR metadata before adding to the store
+ * @param {Array} results Array of metadata results from CMR
+ */
+const processGraphqQlResults = (results) => {
+  const byId = {}
+
+  results.forEach((result) => {
+    const { conceptId } = result
+
+    byId[conceptId] = result
   })
 
   return byId
@@ -49,6 +66,12 @@ const granuleMetadataReducer = (state = initialState, action) => {
       return {
         ...state,
         ...processResults(action.payload)
+      }
+    }
+    case ADD_GRANULE_GRAPHQL_METADATA: {
+      return {
+        ...state,
+        ...processGraphqQlResults(action.payload)
       }
     }
     default:

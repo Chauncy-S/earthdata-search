@@ -282,7 +282,7 @@ export class AccessMethod extends Component {
         <option key={format} value={harmonyFormatMapping[format]}>{format}</option>
       ))
 
-      // Build options for supportedOutputFormats
+      // Build options for supportedOutputProjections
       supportedOutputProjectionOptions = supportedOutputProjections.map(format => (
         <option key={format} value={format}>{format}</option>
       ))

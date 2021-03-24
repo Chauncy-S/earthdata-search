@@ -12,11 +12,13 @@ import {
   STARTED_COLLECTIONS_TIMER,
   STARTED_GRANULES_TIMER,
   UPDATE_COLLECTION_RESULTS,
+  UPDATE_COLLECTION_SEARCH_GRANULES,
   UPDATE_GRANULE_RESULTS
 } from '../constants/actionTypes'
 
 const initialState = {
   allIds: [],
+  byId: {},
   hits: null,
   isLoaded: false,
   isLoading: false,
@@ -51,9 +53,12 @@ const processResults = (results) => {
   const allIds = []
 
   results.forEach((result) => {
-    const { id } = result
+    let { id: conceptId } = result
+    if (conceptId == null) {
+      ({ conceptId } = result)
+    }
 
-    allIds.push(id)
+    allIds.push(conceptId)
   })
 
   return allIds
@@ -87,6 +92,32 @@ const collectionsResultsReducer = (state = initialState, action) => {
         ...state,
         timerStart: null,
         loadTime: Date.now() - timerStart
+      }
+    }
+    case UPDATE_COLLECTION_SEARCH_GRANULES: {
+      const { payload } = action
+
+      const { byId = {} } = state
+
+      const newById = {}
+
+      Object.keys(payload).forEach((conceptId) => {
+        const { [conceptId]: existingData = {} } = byId
+        const { [conceptId]: granuleData = {} } = payload
+        const { granules: granuleResults } = granuleData
+
+        newById[conceptId] = {
+          ...existingData,
+          granules: granuleResults
+        }
+      })
+
+      return {
+        ...state,
+        byId: {
+          ...state.byId,
+          ...newById
+        }
       }
     }
     case UPDATE_COLLECTION_RESULTS: {

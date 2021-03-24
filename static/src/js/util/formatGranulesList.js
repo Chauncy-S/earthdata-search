@@ -27,7 +27,7 @@ export const formatGranulesList = ({
   let hasBrowseImagery = false
 
   const granulesList = granuleIds.map((granuleId) => {
-    const granule = granulesMetadata[granuleId]
+    const { [granuleId]: granule = {} } = granulesMetadata
 
     const original = granule
 

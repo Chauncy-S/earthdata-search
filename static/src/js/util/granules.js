@@ -1,3 +1,6 @@
+import camelcaseKeys from 'camelcase-keys'
+import snakecaseKeys from 'snakecase-keys'
+
 import { isEmpty } from 'lodash'
 
 import { convertSize } from './project'
@@ -5,6 +8,7 @@ import { encodeGridCoords } from './url/gridEncoders'
 import { encodeTemporal } from './url/temporalEncoders'
 import { getEarthdataConfig, getApplicationConfig } from '../../../../sharedUtils/config'
 import { hasTag } from '../../../../sharedUtils/tags'
+import { getTemporal } from './edscDate'
 
 /**
  * Takes the current CMR granule params and applies any changes needed to
@@ -33,6 +37,74 @@ export const withAdvancedSearch = (granuleParams, advancedSearch) => {
   }
 
   return mergedParams
+}
+
+export const calculateGranuleSizeEstimates = (granuleCount, granules) => {
+  const payload = {}
+
+  let size = 0
+  granules.forEach((granule) => {
+    const snakedGranule = snakecaseKeys(granule)
+    size += parseFloat(snakedGranule.granule_size || 0)
+  })
+
+  let singleGranuleSize = 0
+
+  if (granuleCount > 0) {
+    singleGranuleSize = size / granules.length
+
+    const totalSize = singleGranuleSize * granuleCount
+    payload.totalSize = convertSize(totalSize)
+    payload.singleGranuleSize = singleGranuleSize
+  } else {
+    payload.totalSize = convertSize(0)
+    payload.singleGranuleSize = 0
+  }
+
+  return payload
+}
+
+export const formatGranuleResult = (granule, earthdataEnvironment) => {
+  const updatedGranule = snakecaseKeys(granule)
+
+  let { id: conceptId } = updatedGranule
+  if (conceptId == null) {
+    ({ concept_id: conceptId } = updatedGranule)
+    updatedGranule.id = conceptId
+  }
+
+  updatedGranule.isCwic = false
+
+  const formattedTemporal = getTemporal(updatedGranule.time_start, updatedGranule.time_end)
+
+  if (formattedTemporal.filter(Boolean).length > 0) {
+    updatedGranule.formatted_temporal = formattedTemporal
+  }
+
+  const h = getApplicationConfig().thumbnailSize.height
+  const w = getApplicationConfig().thumbnailSize.width
+
+  if (conceptId) {
+    // eslint-disable-next-line
+    updatedGranule.thumbnail = `${getEarthdataConfig(earthdataEnvironment).cmrHost}/browse-scaler/browse_images/granules/${conceptId}?h=${h}&w=${w}`
+  }
+
+  if (granule.links && granule.links.length > 0) {
+    let browseUrl
+
+    // Pick the first 'browse' link to use as the browseUrl
+    granule.links.some((link) => {
+      if (link.rel.indexOf('browse') > -1) {
+        browseUrl = link.href
+        return true
+      }
+      return false
+    })
+
+    updatedGranule.browse_url = browseUrl
+  }
+
+  return camelcaseKeys(updatedGranule)
 }
 
 /**
@@ -77,7 +149,10 @@ export const populateGranuleResults = ({
     payload.singleGranuleSize = 0
   }
 
-  return payload
+  return {
+    ...payload,
+    ...calculateGranuleSizeEstimates(payload.hits, payload.results)
+  }
 }
 
 /**

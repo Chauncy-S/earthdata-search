@@ -1,4 +1,8 @@
+import 'array-foreach-async'
+
 import { isCancel } from 'axios'
+
+import actions from './index'
 
 import {
   buildCollectionSearchParams,
@@ -18,13 +22,17 @@ import {
   STARTED_COLLECTIONS_TIMER,
   UPDATE_COLLECTION_METADATA,
   UPDATE_COLLECTION_RESULTS,
+  UPDATE_COLLECTION_SEARCH_GRANULES,
   UPDATE_FACETS,
   UPDATE_GRANULE_FILTERS
 } from '../constants/actionTypes'
 
+import { addGranuleGraphqlMetadata } from './granules'
+import { calculateGranuleSizeEstimates, formatGranuleResult } from '../util/granules'
 import { getEarthdataEnvironment } from '../selectors/earthdataEnvironment'
 import { getFocusedCollectionId } from '../selectors/focusedCollection'
 import { getUsername } from '../selectors/user'
+import { hasTag } from '../../../../sharedUtils/tags'
 import { pruneFilters } from '../util/pruneFilters'
 
 import CollectionGraphQlRequest from '../util/request/collectionGraphQlRequest'
@@ -83,6 +91,11 @@ export const finishCollectionsTimer = () => ({
   type: FINISHED_COLLECTIONS_TIMER
 })
 
+export const updateCollectionSearchGranules = payload => ({
+  type: UPDATE_COLLECTION_SEARCH_GRANULES,
+  payload
+})
+
 /**
  * Update the granule filters for the collection. Here we prune off any values that are not truthy,
  * as well as any objects that contain only falsy values.
@@ -118,6 +131,57 @@ export const updateFocusedCollectionGranuleFilters = granuleFilters => (dispatch
 }
 
 /**
+ * Perform a collections request based on the current redux state.
+ * @param {Array} graphQlCollections - An array containing the collections returned from GraphQL
+ * @param {Function} dispatch - A dispatch function provided by redux.
+ * @param {Function} getState - A function that returns the current state provided by redux.
+ */
+export const onProcessCollectionGranules = graphQlCollections => (dispatch, getState) => {
+  const state = getState()
+
+  // Retrieve data from Redux using selectors
+  const earthdataEnvironment = getEarthdataEnvironment(state)
+
+  const collectionSearchResults = {}
+  const allGranuleMetadata = []
+
+  graphQlCollections.forEach((collection) => {
+    const { conceptId, granules, tags } = collection
+
+    const { [conceptId]: searchResult = {} } = collectionSearchResults
+
+    const { count: granuleCount, items: granuleResults } = granules
+
+    allGranuleMetadata.push(...granuleResults)
+
+    const isCwic = granuleCount === 0 && hasTag({ tags }, 'org.ceos.wgiss.cwic.granules.prod', '')
+
+    const curatedGranulesState = {
+      allIds: granuleResults.map(granule => granule.conceptId),
+      hits: granuleCount,
+      excludedGranuleIds: [],
+      isCwic,
+      isLoaded: true,
+      isLoading: false,
+      ...calculateGranuleSizeEstimates(granuleCount, granuleResults)
+    }
+
+    collectionSearchResults[conceptId] = {
+      ...searchResult,
+      granules: curatedGranulesState
+    }
+
+    dispatch(actions.initializeCollectionGranulesQuery(conceptId))
+  })
+
+  dispatch(updateCollectionSearchGranules(collectionSearchResults))
+
+  dispatch(addGranuleGraphqlMetadata(allGranuleMetadata.map(
+    granule => formatGranuleResult(granule, earthdataEnvironment)
+  )))
+}
+
+/**
  * Clears out the granule filters for the focused collection.
  */
 export const clearFocusedCollectionGranuleFilters = () => (dispatch, getState) => {
@@ -142,7 +206,7 @@ let cancelToken
  * @param {Function} dispatch - A dispatch function provided by redux.
  * @param {Function} getState - A function that returns the current state provided by redux.
  */
-export const getCollections = () => (dispatch, getState) => {
+export const getCollections = () => async (dispatch, getState) => {
   const state = getState()
 
   // Retrieve data from Redux using selectors
@@ -178,7 +242,7 @@ export const getCollections = () => (dispatch, getState) => {
   cancelToken = requestObject.getCancelToken()
 
   const graphQuery = `
-    query GetCollection(
+    query SearchCollections(
       $boundingBox: String
       $circle: String
       $collectionDataType: [String]
@@ -196,6 +260,7 @@ export const getCollections = () => (dispatch, getState) => {
       $instrumentH: [String]
       $keyword: String
       $line: String
+      $offset: Int
       $options: JSON
       $platform: String
       $platformH: [String]
@@ -232,6 +297,7 @@ export const getCollections = () => (dispatch, getState) => {
         instrumentH: $instrumentH
         keyword: $keyword
         line: $line
+        offset: $offset
         options: $options
         platform: $platform
         platformH: $platformH
@@ -255,6 +321,7 @@ export const getCollections = () => (dispatch, getState) => {
           abstract
           archiveAndDistributionInformation
           boxes
+          browseFlag
           collectionDataType
           conceptId
           coordinateSystem
@@ -293,8 +360,18 @@ export const getCollections = () => (dispatch, getState) => {
           granules {
             count
             items {
+              boxes
+              browseFlag
               conceptId
+              granuleSize
+              dataCenter
               onlineAccessFlag
+              relatedUrls
+              spatialExtent
+              temporalExtent
+              timeEnd
+              timeStart
+              title
             }
           }
           subscriptions (
@@ -324,65 +401,65 @@ export const getCollections = () => (dispatch, getState) => {
       }
     }`
 
-  const response = requestObject.search(graphQuery, {
-    subscriberId: username,
-    ...buildCollectionSearchParams(collectionParams)
-  })
-    .then((response) => {
-      const { data } = response
-      const { collections } = data
-      const { count, facets, items } = collections
-
-      const cmrHits = count
-
-      const { children = [] } = facets
-
-      const payload = {
-        facets: children,
-        hits: cmrHits,
-        keyword,
-        results: items
-      }
-
-      dispatch(finishCollectionsTimer())
-
-      dispatch(updateCollectionMetadata(items))
-
-      if (pageNum === 1) {
-        dispatch(updateCollectionResults(payload))
-      } else {
-        dispatch(addMoreCollectionResults(payload))
-      }
-
-      dispatch(onCollectionsLoaded({
-        loaded: true
-      }))
-
-      dispatch(onFacetsLoaded({
-        loaded: true
-      }))
-
-      dispatch(updateFacets(payload))
-    })
-    .catch((error) => {
-      if (isCancel(error)) return
-
-      dispatch(finishCollectionsTimer())
-      dispatch(onCollectionsErrored())
-      dispatch(onFacetsErrored())
-      dispatch(onCollectionsLoaded({
-        loaded: false
-      }))
-      dispatch(onFacetsLoaded({
-        loaded: false
-      }))
-      dispatch(handleError({
-        error,
-        action: 'getCollections',
-        resource: 'collections',
-        requestObject
-      }))
+  try {
+    const response = await requestObject.search(graphQuery, {
+      subscriberId: username,
+      ...buildCollectionSearchParams(collectionParams)
     })
 
-  return response
+    const { data } = response
+    const { collections } = data
+    const { count, facets, items } = collections
+
+    const cmrHits = count
+
+    const { children = [] } = facets
+
+    const payload = {
+      facets: children,
+      hits: cmrHits,
+      keyword,
+      results: items
+    }
+
+    dispatch(finishCollectionsTimer())
+
+    dispatch(updateCollectionMetadata(items))
+
+    if (pageNum === 1) {
+      dispatch(updateCollectionResults(payload))
+    } else {
+      dispatch(addMoreCollectionResults(payload))
+    }
+
+    dispatch(onCollectionsLoaded({
+      loaded: true
+    }))
+
+    dispatch(onProcessCollectionGranules(items))
+
+    dispatch(onFacetsLoaded({
+      loaded: true
+    }))
+
+    dispatch(updateFacets(payload))
+  } catch (error) {
+    if (isCancel(error)) return
+
+    dispatch(finishCollectionsTimer())
+    dispatch(onCollectionsErrored())
+    dispatch(onFacetsErrored())
+    dispatch(onCollectionsLoaded({
+      loaded: false
+    }))
+    dispatch(onFacetsLoaded({
+      loaded: false
+    }))
+    dispatch(handleError({
+      error,
+      action: 'getCollections',
+      resource: 'collections',
+      requestObject
+    }))
+  }
 }
